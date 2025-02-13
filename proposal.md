@@ -55,9 +55,9 @@ Since **gender and race data** have many missing values, our primary focus will 
 - What are the **salary growth trends** over time in tech careers?  
 
 ### **Usage Scenario: Taylor the Software Engineer**  
-**Taylor**, a **mid-level software engineer with five years of experience**, is considering a job switch. He wants to ensure he is **fairly compensated** and explore which companies offer the best salaries.  
+Taylor is a software engineer with five years of experience, considering a job change. He wants to understand how his potential salary might [differ] based on company and location. Using our dashboard, Taylor can [gather] data to [view] average salaries for software engineers with similar experience across various companies.
 
-Using our **interactive dashboard**, Taylor **filters** the data to view **average salaries for software engineers** with similar experience at **top companies**.  
+Using our **interactive dashboard**, Taylor [**filters**] the data to view **average salaries for software engineers** with similar experience at **top companies**.  
 
 
 ## Next Steps
