@@ -14,4 +14,6 @@ Finally, a pie chart at the bottom right presents the gender distribution of emp
 All elements in the app are interactive, allowing users to filter and adjust parameters dynamically to explore different aspects of the dataset. This app provides an intuitive way to analyze tech salary data across multiple dimensions.
 
 Below is the interface sketch illustrating the planned design:
+
+
 ![App Sketch](sketch.png)
