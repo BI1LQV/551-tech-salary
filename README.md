@@ -1,4 +1,4 @@
-High-Level Description
+High-Level Description    
 This app contains a landing page that shows the distribution of tech salaries across various factors, including gender, country, city, years of experience, years at a company, education level, and time period. Users can set all these parameters using the interactive filters on the left panel to explore salary patterns dynamically.
 
 At the core of the interface is an interactive world map that visualizes average salaries by city. The cities are represented by dots, with the color and size of each dot corresponding to salary levels. This allows users to identify salary trends across different regions.
