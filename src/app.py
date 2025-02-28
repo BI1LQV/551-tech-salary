@@ -28,6 +28,7 @@ df['timestamp_numeric'] = (df['timestamp'] - min_date).dt.days
 world_map = alt.topo_feature(data.world_110m.url, "countries")
 
 app = dash.Dash(__name__)
+server = app.server
 
 
 selector = html.Div([
@@ -53,9 +54,9 @@ selector = html.Div([
             value=None,
             clearable=True,
             placeholder="Please select a company"
-        )
+        ),
     ])
-], style={'width': '20%', 'position': 'sticky', 'top': 0, 'height': 'fit-content'})
+], style={'width': '20%','min-width': '250px', 'position': 'sticky', 'top': 0, 'height': 'fit-content'})
 
 graph = html.Div([
     html.Div([
