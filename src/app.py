@@ -6,11 +6,10 @@ from vega_datasets import data
 from dash.dependencies import Input, Output
 import plotly.express as px
 
-
 alt.data_transformers.disable_max_rows()
 
+# Load and preprocess data
 df = pd.read_csv('data/processed/your_output_file.csv')
-
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
 df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
@@ -21,6 +20,9 @@ numeric_cols = ["basesalary", "stockgrantvalue", "bonus",
 for col in numeric_cols:
     df[col] = pd.to_numeric(df[col], errors="coerce")
 
+# Filter out negative or zero compensation values
+df = df[df['totalyearlycompensation'] > 0]
+
 min_date = df['timestamp'].min()
 max_date = df['timestamp'].max()
 df['timestamp_numeric'] = (df['timestamp'] - min_date).dt.days
@@ -30,7 +32,7 @@ world_map = alt.topo_feature(data.world_110m.url, "countries")
 app = dash.Dash(__name__)
 server = app.server
 
-
+# Sidebar with selectors
 selector = html.Div([
     html.Div([
         html.Label("Select Date Range:"),
@@ -45,20 +47,20 @@ selector = html.Div([
             step=1
         )
     ]),
-    
     html.Div([
         html.Label("Select Company:"),
         dcc.Dropdown(
             id="company-dropdown",
-            options = [{"label": c, "value": c} for c in sorted(df["company"].dropna().unique())],
+            options=[{"label": c, "value": c} for c in sorted(df["company"].dropna().unique())],
             value=None,
             clearable=True,
             placeholder="Please select a company"
         ),
     ])
-], style={'width': '20%','min-width': '250px', 'position': 'sticky', 'top': 0, 'height': 'fit-content'})
+], style={'width': '20%', 'min-width': '250px', 'position': 'sticky', 'top': 0, 'height': 'fit-content'})
 
-graph = html.Div([
+# Original graphs (Tab 1 content) - Remove scatter plot
+graph_tab1 = html.Div([
     html.Div([
         html.H3("Salary Distribution Map", style={'textAlign': 'center'}),
         html.Iframe(
@@ -66,9 +68,6 @@ graph = html.Div([
             style={"width": "100%", "height": "450px", "border": "none"}
         )
     ], style={"width": "100%", "height": "450px"}),
-
-
-                
     html.Div([
         html.Div([
             html.H3("Gender Distribution", style={'textAlign': 'center'}),
@@ -77,7 +76,6 @@ graph = html.Div([
                 style={'width': '100%', 'height': '100%', 'border': 'none'}
             )
         ], style={'width': '30%', 'display': 'inline-block'}),
-        
         html.Div([
             html.H3("Top Companies by Average Salary", style={'textAlign': 'center'}),
             html.Iframe(
@@ -85,27 +83,40 @@ graph = html.Div([
                 style={'width': '100%', 'height': '100%', 'border': 'none'}
             )
         ], style={'width': '70%', 'display': 'inline-block'})
-    
     ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%', 'height': '400px'}),
-    
-    html.Div([
-        html.H3("Experience vs. Compensation", style={'textAlign': 'center'}),
-        dcc.Graph(id="scatter-graph")
-    ], style={'width': '100%', 'display': 'inline-block'}),
-    
 ], style={'flexGrow': 1})
 
+# New box plot for education levels (Tab 2 content) - Add scatter plot below box plot
+graph_tab2 = html.Div([
+    html.H3("Salary Distribution by Education Level", style={'textAlign': 'center'}),
+    dcc.Graph(id="education-boxplot"),
+    html.H3("Experience vs. Compensation", style={'textAlign': 'center'}),
+    dcc.Graph(id="scatter-graph")
+], style={'width': '100%', 'height': '1600px'})  # Increased height to accommodate both plots (800px + 800px)
 
+# Layout with Tabs - Smaller tab labels
 app.layout = html.Div([
     html.H1("Tech Salary Analytics Dashboard", style={'textAlign': 'center'}),
-    html.Div([selector, graph], style={'display': 'flex', 'flexDirection': 'row'})
+    html.Div([
+        selector,
+        html.Div([
+            dcc.Tabs(id="tabs", value='tab-1', children=[
+                dcc.Tab(label='General Analytics', value='tab-1', children=[graph_tab1],
+                        style={'fontSize': '14px', 'padding': '5px'}),
+                dcc.Tab(label='Education Salary Analysis', value='tab-2', children=[graph_tab2],
+                        style={'fontSize': '14px', 'padding': '5px'}),
+            ], style={'fontSize': '14px'}),
+        ], style={'flexGrow': 1})
+    ], style={'display': 'flex', 'flexDirection': 'row'})
 ], style={'position': 'relative', 'width': '100%', 'height': '100%'})
 
+# Callback to update all visualizations
 @app.callback(
     [Output("altair-map", "srcDoc"),
      Output("bar-chart", "srcDoc"),
      Output("pie-chart", "srcDoc"),
-     Output("scatter-graph", "figure")],
+     Output("scatter-graph", "figure"),
+     Output("education-boxplot", "figure")],
     [Input("timestamp-slider", "value"),
      Input("company-dropdown", "value")]
 )
@@ -119,6 +130,7 @@ def update_dashboard(selected_range, selected_company):
     else:
         company_df = filtered_df.copy()
     
+    # Existing visualizations
     grouped = filtered_df.groupby(['latitude', 'longitude'], as_index=False).agg(
         avg_salary=('totalyearlycompensation', 'mean'),
         location=('location', 'first')
@@ -182,10 +194,59 @@ def update_dashboard(selected_range, selected_company):
     scatter_fig.update_layout(xaxis_title="Years of Experience", 
                             yaxis_title="Total Compensation")
     
+    # Box plot for education levels
+    education_df = company_df.melt(
+        id_vars=['totalyearlycompensation'],
+        value_vars=['Highschool', 'Bachelors_Degree', 'Masters_Degree', 'Doctorate_Degree'],
+        var_name='Education_Level',
+        value_name='Degree'
+    )
+    education_df = education_df[education_df['Degree'] == 1] 
+    education_df['Education_Level'] = education_df['Education_Level'].replace({
+        'Highschool': 'Highschool',
+        'Bachelors_Degree': 'Bachelors',
+        'Masters_Degree': 'Masters',
+        'Doctorate_Degree': 'Doctorate'
+    })
+
+    # Calculate IQR to filter outliers
+    Q1 = education_df['totalyearlycompensation'].quantile(0.25)
+    Q3 = education_df['totalyearlycompensation'].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    # Filter out extreme outliers
+    education_df_filtered = education_df[
+        (education_df['totalyearlycompensation'] >= lower_bound) & 
+        (education_df['totalyearlycompensation'] <= upper_bound)
+    ]
+
+    box_fig = px.box(
+        education_df_filtered,
+        x="Education_Level",
+        y="totalyearlycompensation",
+        title="Salary Distribution by Education Level",
+        labels={"totalyearlycompensation": "Total Yearly Compensation ($)", "Education_Level": "Education Level"}
+    )
+    box_fig.update_layout(
+        yaxis_title="Total Yearly Compensation ($)", 
+        xaxis_title="Education Level",
+        yaxis_range=[0, upper_bound * 1.1],
+        boxgap=0.4,
+        boxgroupgap=0.3
+    )
+    box_fig.update_traces(
+        boxmean=True,
+        jitter=0.3,
+        pointpos=-1.8
+    )
+
     return (map_chart.to_html(), 
             bar_chart.to_html(), 
             pie_chart.to_html(), 
-            scatter_fig)
+            scatter_fig, 
+            box_fig)
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=8052)
