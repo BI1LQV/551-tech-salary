@@ -59,35 +59,36 @@ selector = html.Div([
 
 graph = html.Div([
     html.Div([
-        html.Div([
-            html.H3("Salary Distribution Map", style={'textAlign': 'center'}),
-            html.Iframe(
-                id="altair-map",
-                style={"width": "700px", "height": "450px", "border": "none"}
-            )
-        ], style={"width": "700px", "height": "450px"}),
+        html.H3("Salary Distribution Map", style={'textAlign': 'center'}),
+        html.Iframe(
+            id="altair-map",
+            style={"width": "100%", "height": "450px", "border": "none"}
+        )
+    ], style={"width": "100%", "height": "450px"}),
+
+    html.Div([
+        html.H3("Experience vs. Compensation", style={'textAlign': 'center'}),
+        dcc.Graph(id="scatter-graph")
+    ], style={'width': '100%', 'display': 'inline-block'}),
                 
+    html.Div([
         html.Div([
             html.H3("Gender Distribution", style={'textAlign': 'center'}),
             html.Iframe(
                 id='pie-chart',
                 style={'width': '100%', 'height': '100%', 'border': 'none'}
             )
-        ], style={'flexGrow': 1, 'display': 'inline-block'})
-    ], style={'display': 'flex', 'flexDirection': 'row'}),
+        ], style={'width': '30%', 'display': 'inline-block'}),
+        
+        html.Div([
+            html.H3("Top Companies by Average Salary", style={'textAlign': 'center'}),
+            html.Iframe(
+                id='bar-chart',
+                style={'width': '100%', 'height': '100%', 'border': 'none'}
+            )
+        ], style={'width': '70%', 'display': 'inline-block'})
+    ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%', 'height': '400px'}),
 
-    html.Div([
-        html.H3("Experience vs. Compensation", style={'textAlign': 'center'}),
-        dcc.Graph(id="scatter-graph")
-    ], style={'width': '100%', 'display': 'inline-block'}),
-    
-    html.Div([
-        html.H3("Top Companies by Average Salary", style={'textAlign': 'center'}),
-        html.Iframe(
-            id='bar-chart',
-            style={'width': '100%', 'height': '500px', 'border': 'none'}
-        )
-    ], style={'width': '100%', 'display': 'inline-block'})
 ], style={'flexGrow': 1})
 
 
@@ -123,7 +124,7 @@ def update_dashboard(selected_range, selected_company):
         fill='lightgray',
         stroke='white'
     ).properties(
-        width=600,
+        width=700,
         height=400
     ).project("equirectangular")
 
@@ -146,7 +147,7 @@ def update_dashboard(selected_range, selected_company):
         color=alt.Color('company:N', legend=None)
     ).properties(
         width=500,
-        height=400
+        height=200
     )
     
     filtered_df['gender_category'] = filtered_df['gender'].map(
@@ -163,8 +164,8 @@ def update_dashboard(selected_range, selected_company):
         color=alt.Color('gender:N', scale=alt.Scale(domain=['male', 'female', 'other'])),
         tooltip=['gender:N', 'count:Q']
     ).properties(
-        width=200,
-        height=200
+        width=180,
+        height=180
     )
     
     scatter_fig = px.scatter(
