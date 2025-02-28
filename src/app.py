@@ -49,7 +49,7 @@ selector = html.Div([
         html.Label("Select Company:"),
         dcc.Dropdown(
             id="company-dropdown",
-            options=[{"label": c, "value": c} for c in df["company"].dropna().unique()],
+            options = [{"label": c, "value": c} for c in sorted(df["company"].dropna().unique())],
             value=None,
             clearable=True,
             placeholder="Please select a company"
@@ -66,10 +66,7 @@ graph = html.Div([
         )
     ], style={"width": "100%", "height": "450px"}),
 
-    html.Div([
-        html.H3("Experience vs. Compensation", style={'textAlign': 'center'}),
-        dcc.Graph(id="scatter-graph")
-    ], style={'width': '100%', 'display': 'inline-block'}),
+
                 
     html.Div([
         html.Div([
@@ -87,8 +84,14 @@ graph = html.Div([
                 style={'width': '100%', 'height': '100%', 'border': 'none'}
             )
         ], style={'width': '70%', 'display': 'inline-block'})
+    
     ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%', 'height': '400px'}),
-
+    
+    html.Div([
+        html.H3("Experience vs. Compensation", style={'textAlign': 'center'}),
+        dcc.Graph(id="scatter-graph")
+    ], style={'width': '100%', 'display': 'inline-block'}),
+    
 ], style={'flexGrow': 1})
 
 
