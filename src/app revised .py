@@ -7,7 +7,7 @@ import plotly.express as px
 
 alt.data_transformers.disable_max_rows()
 
-df = pd.read_csv(r'C:\Users\Wyuzh\Desktop\UBC\DATA_551\Project\551-tech-salary\data\processed/your_output_file.csv')
+df = pd.read_csv(r'D:\Git hub\551-tech-salary\data\processed\your_output_file.csv')
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
 df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
@@ -164,8 +164,8 @@ def update_dashboard(selected_range, selected_company):
         size="avg_salary",
         color="avg_salary",
         hover_name="location",
-        color_continuous_scale="viridis",
-        size_max=40,
+        color_continuous_scale="Viridis",
+        size_max=15,
         zoom=1,
         center={"lat": 20, "lon": 0},
     )
@@ -173,13 +173,12 @@ def update_dashboard(selected_range, selected_company):
         mapbox_style="open-street-map",
         margin={"r":0, "t":0, "l":0, "b":0}
     )
-    
+
     avg_salary_by_company = company_df.groupby('company')['totalyearlycompensation'].mean().reset_index()
     top_10_companies = avg_salary_by_company.nlargest(10, 'totalyearlycompensation')
     bar_chart = alt.Chart(top_10_companies).mark_bar().encode(
         x=alt.X('company:N', sort='-y', axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y('totalyearlycompensation:Q', title='Average Yearly Compensation ($)'),
-        color='company:N'
+        y=alt.Y('totalyearlycompensation:Q', title='Average Yearly Compensation ($)')
     ).properties(
         width=200,
         height=180
