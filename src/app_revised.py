@@ -294,4 +294,4 @@ def update_dashboard(selected_range, selected_company):
     )
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8052)
+    app.run_server(debug=False, port=8052)
