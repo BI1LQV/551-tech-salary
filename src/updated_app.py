@@ -302,7 +302,7 @@ def update_dashboard(selected_range, selected_company):
     )
     bar_chart_html = bar_chart.to_html()
     
-    company_df['gender_category'] = company_df['gender'].map(
+    company_df['gender_category'] = company_df['gender'].dropna().map(
         lambda x: 'male' if str(x).lower() in ['m', 'male'] 
         else ('female' if str(x).lower() in ['f', 'female'] else 'other')
     )
