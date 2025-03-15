@@ -7,11 +7,13 @@ import plotly.express as px
 
 alt.data_transformers.disable_max_rows()
 
+import dask.dataframe as dd
 df = pd.read_csv('data/processed/your_output_file.csv')
-df['timestamp'] = pd.to_datetime(df['timestamp'])
-df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
-df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-df.replace("NA", pd.NA, inplace=True)
+dask_df = dd.from_pandas(df, npartitions=4)  # Split into 4 partitions for parallel processing
+df['timestamp'] = dask_df['timestamp'].map_partitions(pd.to_datetime).compute()
+df['latitude'] = dask_df['latitude'].map_partitions(pd.to_numeric, errors='coerce').compute()
+df['longitude'] = dask_df['longitude'].map_partitions(pd.to_numeric, errors='coerce').compute()
+df = df.replace("NA", pd.NA)
 
 numeric_cols = ["basesalary", "stockgrantvalue", "bonus", 
                 "totalyearlycompensation", "yearsofexperience", "yearsatcompany"]
@@ -19,6 +21,10 @@ for col in numeric_cols:
     df[col] = pd.to_numeric(df[col], errors="coerce")
 
 df = df[df['totalyearlycompensation'] > 0]
+
+df['company'] = df['company'].astype('category')
+df['gender'] = df['gender'].astype('category')
+df['level'] = df['level'].astype('category')
 
 min_date = df['timestamp'].min()
 max_date = df['timestamp'].max()
@@ -281,16 +287,16 @@ def update_dashboard(selected_range, selected_company):
                 'textAlign': 'center',
                 'width': '100%',
                 'fontFamily': 'Roboto, sans-serif',
-                'fontSize': '16px',
-                'fontWeight': 'bold',  # Changed to bold
-                'color': '#333333'
+                'fontSize': '39px',  
+                'fontWeight': 'bold',
+                'color': '#666666'  
             })
         ], style={
             'padding': '10px', 
             'margin': '5px 0', 
             'textAlign': 'center',
             'width': '100%',
-            'backgroundColor': '#F5F7FA'  # Optional: subtle background for separation
+            'backgroundColor': '#F5F7FA'  
         }),
         html.Div([
             html.H4("Average Total Compensation", style={
@@ -309,9 +315,9 @@ def update_dashboard(selected_range, selected_company):
                 'textAlign': 'center',
                 'width': '100%',
                 'fontFamily': 'Roboto, sans-serif',
-                'fontSize': '16px',
-                'fontWeight': 'bold',  # Changed to bold
-                'color': '#333333'
+                'fontSize': '39px',
+                'fontWeight': 'bold',  
+                'color': '#666666'
             })
         ], style={
             'padding': '10px', 
@@ -337,9 +343,9 @@ def update_dashboard(selected_range, selected_company):
                 'textAlign': 'center',
                 'width': '100%',
                 'fontFamily': 'Roboto, sans-serif',
-                'fontSize': '16px',
-                'fontWeight': 'bold',  # Changed to bold
-                'color': '#333333'
+                'fontSize': '39px',
+                'fontWeight': 'bold',  
+                'color': '#666666'
             })
         ], style={
             'padding': '10px', 

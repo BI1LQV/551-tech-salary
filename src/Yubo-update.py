@@ -190,15 +190,24 @@ def update_dashboard(selected_range, selected_company):
         opacity=0.6
     )
     map_fig.update_layout(
-        mapbox_style="open-street-mapp",
+        mapbox_style="open-street-map",
         margin={"r":0, "t":0, "l":0, "b":0},
+        
+
     )
 
     avg_salary_by_company = company_df.groupby('company')['totalyearlycompensation'].mean().reset_index()
     top_10_companies = avg_salary_by_company.nlargest(10, 'totalyearlycompensation')
     bar_chart = alt.Chart(top_10_companies).mark_bar().encode(
         x=alt.X('company:N', sort='-y', axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y('totalyearlycompensation:Q', title='Average Yearly Compensation ($)')
+        y=alt.Y('totalyearlycompensation:Q', title='Average Yearly Compensation ($)'),
+        color=alt.Color('totalyearlycompensation:Q', 
+                    scale=alt.Scale(
+                        domain=[top_10_companies['totalyearlycompensation'].min(), 
+                                top_10_companies['totalyearlycompensation'].max()],
+                        range=['#ADD8E6', '#00008B']  # Light blue to deep blue
+                    ),legend=None
+                    )
     ).properties(
         width=200,
         height=180
@@ -281,16 +290,16 @@ def update_dashboard(selected_range, selected_company):
                 'textAlign': 'center',
                 'width': '100%',
                 'fontFamily': 'Roboto, sans-serif',
-                'fontSize': '16px',
-                'fontWeight': 'bold',  # Changed to bold
-                'color': '#333333'
+                'fontSize': '39px',  
+                'fontWeight': 'bold',
+                'color': '#666666'  
             })
         ], style={
             'padding': '10px', 
             'margin': '5px 0', 
             'textAlign': 'center',
             'width': '100%',
-            'backgroundColor': '#F5F7FA'  # Optional: subtle background for separation
+            'backgroundColor': '#F5F7FA'  
         }),
         html.Div([
             html.H4("Average Total Compensation", style={
@@ -309,9 +318,9 @@ def update_dashboard(selected_range, selected_company):
                 'textAlign': 'center',
                 'width': '100%',
                 'fontFamily': 'Roboto, sans-serif',
-                'fontSize': '16px',
-                'fontWeight': 'bold',  # Changed to bold
-                'color': '#333333'
+                'fontSize': '39px',
+                'fontWeight': 'bold',  
+                'color': '#666666'
             })
         ], style={
             'padding': '10px', 
@@ -337,9 +346,9 @@ def update_dashboard(selected_range, selected_company):
                 'textAlign': 'center',
                 'width': '100%',
                 'fontFamily': 'Roboto, sans-serif',
-                'fontSize': '16px',
-                'fontWeight': 'bold',  # Changed to bold
-                'color': '#333333'
+                'fontSize': '39px',
+                'fontWeight': 'bold',  
+                'color': '#666666'
             })
         ], style={
             'padding': '10px', 
