@@ -1,2 +1,3 @@
 dash
 vega_datasets
+plotly.express

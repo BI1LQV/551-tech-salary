@@ -175,7 +175,7 @@ def update_dashboard(selected_range, selected_company):
         avg_salary=('totalyearlycompensation', 'mean'),
         location=('location', 'first')
     )
-    map_fig = px.scatter_map(
+    map_fig = px.scatter_mapbox(
         grouped,
         lat="latitude",
         lon="longitude",
