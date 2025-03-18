@@ -9,6 +9,8 @@ Our dashboard has undergone significant changes based on feedback and our own us
 
 **Simplification of Selection Bars**: Previously, users could select country and city as filters. Since this information is already well-represented on the map, we removed these filters. Now, users can filter by company and year only, simplifying the selection process while maintaining access to key data.
 
+**Enhancement of Comparison**: Previously, our app only allowed users to view data for a single company at a time, making comparisons difficult. To address this, we improved the logic and selection functionality, enabling multiple company selections. This enhancement significantly improves data comparison across different companies.
+
 **Optimized Salary Representation on the Map**: To avoid redundant visualizations, we used both color and dot size on the map to represent salaries across different cities. Consequently, we removed the salary bar chart beneath the map, which previously showed salary comparisons among cities. This approach keeps the dashboard less cluttered while preserving meaningful insights.
 
 **Replacement of Salary Change Over Time with Scatter Plot for Job Titles**: Given the large number of job titles in our dataset, a bar chart was insufficient for visualizing salary distributions across different roles. We opted for a scatter plot where users can filter and select specific job titles, providing a more interactive and detailed way to analyze salary distributions.
