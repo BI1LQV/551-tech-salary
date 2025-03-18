@@ -27,7 +27,7 @@ While we have successfully implemented most planned features, a few were left ou
 
 **More Detailed Geographical Insights**: While country and city filters were removed for simplicity, some users may prefer additional interactivity in map visualizations. Future iterations may explore dynamic tooltips or enhanced filtering within the map itself.
 
-**Improved Page Performance**: As more data is included, dashboard performance slows down. Optimizing query efficiency and rendering speed remains an ongoing improvement.
+**Improved Page Performance**: As more data is included, dashboard performance slows down. We attempted to optimize performance using multi-threading, but due to Python's GIL, the improvements were limited. For significant performance gains, we would need to consider restructuring parts of the code using Python C API.
 
 **More Interactive Map Features**: While the map currently visualizes salary distribution, adding interactive elements to link it with other plots would improve usability.
 
