@@ -39,6 +39,8 @@ Based on the feedback we received, we carefully incorporated suggested improveme
 
 **Adjusting Layout and Chart Sizing**: We allocated more space for the world map and pie chart, allowing for better visibility and easier interaction. This involved reorganizing the dashboard’s grid and prioritizing key visual elements.
 
+**Reducing the Number of Colors in the Bar Graph**: We refined the color scheme by limiting the number of colors displayed in the bar graph. Instead of using excessive colors, the graph now only displays bars for the companies selected by the user. For example, if a user selects three companies, the graph will display only three distinct colors, improving readability and reducing visual clutter.
+
 **Adding Summary Cards**: To provide an immediate snapshot of key insights, we introduced metric cards displaying “Average Salary,” “Total Respondents,” and “Median Years of Experience.” These summary cards help users gain essential insights before exploring the detailed charts.
 
 ## Conclusion
