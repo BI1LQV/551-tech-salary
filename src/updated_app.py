@@ -123,9 +123,6 @@ def process_pie_chart_data(args):
         theta='count:Q',
         color=alt.Color('gender:N', scale=alt.Scale(domain=['male', 'female', 'other'])),
         tooltip=['gender:N', 'count:Q']
-    ).properties(
-        width=200,
-        height=200
     )
     return ('pie', pie_chart.to_html())
 
@@ -245,12 +242,13 @@ company_selector = html.Div([
         multi=True
     )
 ], style={
-    'width': '40%',
+    'width': '80%',  # Changed from 40%
     'padding': '10px',
     'boxSizing': 'border-box',
     'border': '1px solid #ccc',
     'borderRadius': '6px',
-    'backgroundColor': '#f9f9f9'
+    'backgroundColor': '#f9f9f9',
+    'marginBottom': '10px'  # Added spacing between selectors
 })
 
 # CHANGED: Timeline Slider ONLY
@@ -272,7 +270,7 @@ timeline_selector = html.Div([
         step=1
     )
 ], style={
-    'width': '50%',
+    'width': '80%',  # Changed from 50%
     'padding': '10px',
     'boxSizing': 'border-box',
     'border': '1px solid #ccc',
@@ -310,7 +308,7 @@ graph_tab1 = html.Div([
             type="circle",
             children=dcc.Graph(id="map-graph", style={
                 "width": "100%", 
-                "height": "540px"
+                "height": "75vh"
             })
         )
     ], style={
@@ -332,19 +330,18 @@ graph_tab1 = html.Div([
                     id='pie-chart',
                     style={
                         'width': '100%', 
-                        'height': '250px',  # CHANGED: bigger chart
-                        'border': 'none'
+                        'height': '40vh',  # CHANGED: bigger chart
+                        'border': 'none',
+                        'overflow': 'hidden'
                     }
                 )
             )
         ], style={
-            'width': '65%', 
-            'height': '250px',
+            'width': '100%', 
+            'height': '40vh',
             'borderRadius': '8px',
-            'backgroundColor': '#fafafa',
             'padding': '0px',           # CHANGED: minimal padding
             'margin': '0px',
-            'marginLeft': '150px'
         }),
 
         html.Div([
@@ -356,19 +353,21 @@ graph_tab1 = html.Div([
                 children=html.Iframe(
                     id='bar-chart',
                     style={
-                        'width': '100%', 
-                        'height': '290px',  # CHANGED: bigger chart
+                        'width': '530px', 
+                        'height': '32vh',  # CHANGED: bigger chart
                         'border': 'none'
                     }
                 )
             )
         ], style={
             'width': '100%', 
-            'height': '290px',
+            'height': '32vh',
             'borderRadius': '8px',
-            'backgroundColor': '#fafafa',
             'padding': '0px',
-            'margin': '0px'
+            'margin': '0px',
+            'display': 'flex',
+            'alignItems': 'center',
+            'flexDirection': 'column',
         })
     ], style={
         'width': '40%',  # CHANGED: 40% instead of ~30%
@@ -404,7 +403,7 @@ graph_tab2 = html.Div([
             dcc.Loading(
                 id="loading-scatter",
                 type="circle",
-                children=dcc.Graph(id="scatter-graph", style={"width": "100%", "height": "450px"})
+                children=dcc.Graph(id="scatter-graph")
             )
         ], style={'width': '50%', 'padding': '10px'})  # CHANGED: 50% width
 
@@ -442,13 +441,20 @@ app.layout = html.Div([
         timeline_selector
     ], style={
         'display': 'flex',
-        'flexDirection': 'row',
-        'justifyContent': 'space-evenly',  # center them
+        'flexDirection': 'column',  # Changed from row to column
+        'justifyContent': 'flex-start',
         'alignItems': 'center',
-        'width': '100%',
-        'marginTop': '20px',   # spacing above
-        'marginBottom': '20px'
-    }),
+        'position': 'fixed',  # Fixed position
+        'left': '-280px',  # Start position off-screen
+        'bottom': '0',  # Changed from top to bottom
+        'height': 'contain',  # Full viewport height
+        'width': '300px',  # Fixed width for the sidebar
+        'backgroundColor': '#fff',
+        'boxShadow': '2px 0 5px rgba(0,0,0,0.1)',
+        'transition': 'left 0.3s ease',  # Smooth transition for potential hover effect
+        'zIndex': '1000',  # Ensure it stays on top
+        'padding': '20px 0'
+    },id="selector-container"),
 ], style={
     'fontFamily': 'sans-serif',
     'width': '100%',
@@ -562,8 +568,8 @@ def update_pie(selected_range, selected_company):
         color=alt.Color('gender:N', scale=alt.Scale(domain=['male', 'female', 'other'])),
         tooltip=['gender:N', 'count:Q']
     ).properties(
-        width=200,
-        height=200
+        width=600,
+        height=300
     )
     return pie_chart.to_html()
 
@@ -639,7 +645,6 @@ def update_education(selected_range, selected_company):
         y="totalyearlycompensation",
         box=True,
         points="all",
-        title="Salary Distribution by Education Level",
         labels={
             "totalyearlycompensation": "Total Yearly Compensation ($)", 
             "Education_Level": "Education Level"
