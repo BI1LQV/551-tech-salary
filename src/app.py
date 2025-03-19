@@ -2,24 +2,165 @@ import pandas as pd
 import dash
 from dash import dcc, html
 import altair as alt
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.express as px
+import multiprocessing as mp
+from functools import partial
+import numpy as np
+from dash.exceptions import PreventUpdate
 
 alt.data_transformers.disable_max_rows()
 
-df = pd.read_csv('data/processed/your_output_file.csv')
-df['timestamp'] = pd.to_datetime(df['timestamp'])
-df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
-df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-df.replace("NA", pd.NA, inplace=True)
+def load_data():
+    df = pd.read_csv('data/processed/your_output_file.csv')
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
+    df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
+    df.replace("NA", pd.NA, inplace=True)
 
-numeric_cols = ["basesalary", "stockgrantvalue", "bonus", 
-                "totalyearlycompensation", "yearsofexperience", "yearsatcompany"]
-for col in numeric_cols:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
+    numeric_cols = ["basesalary", "stockgrantvalue", "bonus", 
+                    "totalyearlycompensation", "yearsofexperience", "yearsatcompany"]
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
 
-df = df[df['totalyearlycompensation'] > 0]
+    df = df[df['totalyearlycompensation'] > 0]
+    return df
 
+def create_map_chart(grouped):
+    map_fig = px.scatter_mapbox(
+        grouped,
+        lat="latitude",
+        lon="longitude",
+        size="avg_salary",
+        color="avg_salary",
+        hover_name="location",
+        hover_data={"avg_salary": ":.2f"},
+        color_continuous_scale="Viridis",
+        size_max=15,
+        zoom=1.5,
+        center={"lat": 20, "lon": 0},
+        opacity=0.6
+    )
+    map_fig.update_layout(
+        mapbox_style="open-street-map",
+        margin={"r":0, "t":0, "l":0, "b":0},
+    )
+    return map_fig
+
+def create_bar_chart(top_10_companies):
+    bar_chart = alt.Chart(top_10_companies).mark_bar().encode(
+        x=alt.X('company:N', sort='-y', axis=alt.Axis(labelAngle=-45)),
+        y=alt.Y('totalyearlycompensation:Q', title='Average Yearly Compensation ($)'),
+        color=alt.Color('totalyearlycompensation:Q', 
+                    scale=alt.Scale(
+                        domain=[top_10_companies['totalyearlycompensation'].min(), 
+                                top_10_companies['totalyearlycompensation'].max()],
+                        range=['#ADD8E6', '#00008B']
+                    ),legend=None
+                    )
+    ).properties(
+        width=200,
+        height=180
+    )
+    return bar_chart.to_html()
+
+def create_pie_chart(gender_counts):
+    pie_chart = alt.Chart(gender_counts).mark_arc().encode(
+        theta='count:Q',
+        color=alt.Color('gender:N', scale=alt.Scale(domain=['male', 'female', 'other'])),
+        tooltip=['gender:N', 'count:Q']
+    ).properties(
+        width=180,
+        height=180
+    )
+    return pie_chart.to_html()
+
+def create_scatter_chart(company_df):
+    scatter_fig = px.scatter(
+        company_df,
+        x="yearsofexperience",
+        y="totalyearlycompensation",
+        color="level",
+        hover_data=["title", "basesalary", "stockgrantvalue", "bonus", "location"]
+    )
+    scatter_fig.update_layout(
+        xaxis_title="Years of Experience", 
+        yaxis_title="Total Compensation"
+    )
+    return scatter_fig
+
+def create_education_chart(education_df):
+    violin_fig = px.violin(
+        education_df,
+        x="Education_Level",
+        y="totalyearlycompensation",
+        box=True,
+        points="all",
+        labels={"totalyearlycompensation": "Total Yearly Compensation ($)", "Education_Level": "Education Level"}
+    )
+    violin_fig.update_layout(
+        yaxis_title="Total Yearly Compensation ($)",
+        xaxis_title="Education Level"
+    )
+    return violin_fig
+
+def apply_chart_creation(func_data_tuple):
+    func, data = func_data_tuple
+    return func(data)
+
+def process_charts(company_df):
+    # Create a pool of workers
+    pool = mp.Pool(processes=4)
+    
+    # Prepare data for parallel processing
+    grouped = company_df.groupby(['latitude', 'longitude'], as_index=False).agg(
+        avg_salary=('totalyearlycompensation', 'mean'),
+        location=('location', 'first')
+    )
+    
+    avg_salary_by_company = company_df.groupby('company')['totalyearlycompensation'].mean().reset_index()
+    top_10_companies = avg_salary_by_company.nlargest(10, 'totalyearlycompensation')
+    
+    company_df['gender_category'] = company_df['gender'].dropna().map(
+        lambda x: 'male' if str(x).lower() in ['m', 'male'] 
+        else ('female' if str(x).lower() in ['f', 'female'] else 'other')
+    )
+    gender_counts = company_df['gender_category'].value_counts().reset_index()
+    gender_counts.columns = ['gender', 'count']
+    
+    education_df = company_df.melt(
+        id_vars=['totalyearlycompensation'],
+        value_vars=['Highschool', 'Bachelors_Degree', 'Masters_Degree', 'Doctorate_Degree'],
+        var_name='Education_Level',
+        value_name='Degree'
+    )
+    education_df = education_df[education_df['Degree'] == 1]
+    education_df['Education_Level'] = education_df['Education_Level'].replace({
+        'Highschool': 'Highschool',
+        'Bachelors_Degree': 'Bachelors',
+        'Masters_Degree': 'Masters',
+        'Doctorate_Degree': 'Doctorate'
+    })
+    
+    # Run chart creation in parallel
+    results = pool.map(
+        apply_chart_creation,
+        [
+            (create_map_chart, grouped),
+            (create_bar_chart, top_10_companies),
+            (create_pie_chart, gender_counts),
+            (create_scatter_chart, company_df),
+            (create_education_chart, education_df)
+        ]
+    )
+    
+    pool.close()
+    pool.join()
+    
+    return results
+
+# Initialize the dashboard
+df = load_data()
 min_date = df['timestamp'].min()
 max_date = df['timestamp'].max()
 df['timestamp_numeric'] = (df['timestamp'] - min_date).dt.days
@@ -78,23 +219,35 @@ graph_tab1 = html.Div([
     html.Div([
         html.Div([
             html.H3("Average Salary Distribution Map", style={'textAlign': 'center'}),
-            dcc.Graph(id="map-graph", style={"width": "100%", "height": "800px"})
+            dcc.Loading(
+                id="loading-map",
+                type="circle",
+                children=dcc.Graph(id="map-graph", style={"width": "100%", "height": "800px"})
+            )
         ], style={'width': '100%', 'display': 'inline-block', 'verticalAlign': 'top'}),
 
         html.Div([
             html.Div([
                 html.H3("Gender Distribution", style={'textAlign': 'left'}),
-                html.Iframe(
-                    id='pie-chart',
-                    style={'width': '100%', 'height': '300px','border': 'none', 'display': 'block'}
+                dcc.Loading(
+                    id="loading-pie",
+                    type="circle",
+                    children=html.Iframe(
+                        id='pie-chart',
+                        style={'width': '100%', 'height': '300px','border': 'none', 'display': 'block'}
+                    )
                 )
             ], style={'width': '100%', 'height': '300px'}),
 
             html.Div([
                 html.H3("Top Companies by Average Salary", style={'textAlign': 'left'}),
-                html.Iframe(
-                    id='bar-chart',
-                    style={'width': '100%', 'height': '300px','border': 'none', 'display': 'block'}
+                dcc.Loading(
+                    id="loading-bar",
+                    type="circle",
+                    children=html.Iframe(
+                        id='bar-chart',
+                        style={'width': '100%', 'height': '300px','border': 'none', 'display': 'block'}
+                    )
                 )
             ], style={'width': '100%', 'height': '300px', 'marginTop': '10px'})
 
@@ -106,18 +259,26 @@ graph_tab2 = html.Div([
     html.Div([
         html.Div([
             html.H3("Salary Distribution by Education Level", style={'textAlign': 'left', 'marginBottom': '10px'}),
-            dcc.Graph(id="education-boxplot", style={'width': '100%', 'height': '900px'})  # Set specific height
+            dcc.Loading(
+                id="loading-education",
+                type="circle",
+                children=dcc.Graph(id="education-boxplot", style={'width': '100%', 'height': '900px'})
+            )
         ], style={'width': '50%', 'padding': '10px', 'boxSizing': 'border-box'}),
 
         html.Div([
             html.H3("Experience vs. Compensation", style={'textAlign': 'left', 'marginBottom': '10px'}),
-            dcc.Graph(id="scatter-graph", style={'width': '100%', 'height': '900px'})  # Set specific height
+            dcc.Loading(
+                id="loading-scatter",
+                type="circle",
+                children=dcc.Graph(id="scatter-graph", style={'width': '100%', 'height': '900px'})
+            )
         ], style={'width': '50%', 'padding': '10px', 'boxSizing': 'border-box'})
     ], style={
         'display': 'flex',
         'flexDirection': 'row',
-        'width': '100%',  # Use full width of the tab
-        'height': '900px',  # Adjusted height to fit both graphs
+        'width': '100%',
+        'height': '900px',
         'padding': '10px'
     })
 ], style={'width': '100%', 'padding': '10px'})
@@ -145,14 +306,7 @@ app.layout = html.Div([
 ], style={'width': '100%', 'height': '100%', 'margin': '0 auto', 'boxSizing': 'border-box'})
 
 @app.callback(
-    [
-        Output("map-graph", "figure"),
-        Output("bar-chart", "srcDoc"),
-        Output("pie-chart", "srcDoc"),
-        Output("scatter-graph", "figure"),
-        Output("education-boxplot", "figure"),
-        Output("summary-cards", "children")
-    ],
+    Output("summary-cards", "children"),
     [
         Input("timestamp-slider", "value"),
         Input("company-dropdown", "value")
@@ -171,107 +325,12 @@ def update_dashboard(selected_range, selected_company):
     else:
         company_df = filtered_df.copy()
     
-    grouped = company_df.groupby(['latitude', 'longitude'], as_index=False).agg(
-        avg_salary=('totalyearlycompensation', 'mean'),
-        location=('location', 'first')
-    )
-    map_fig = px.scatter_mapbox(
-        grouped,
-        lat="latitude",
-        lon="longitude",
-        size="avg_salary",
-        color="avg_salary",
-        hover_name="location",
-        hover_data={"avg_salary": ":.2f"},
-        color_continuous_scale="Viridis",
-        size_max=15,
-        zoom=1.5,
-        center={"lat": 20, "lon": 0},
-        opacity=0.6
-    )
-    map_fig.update_layout(
-        mapbox_style="open-street-map",
-        margin={"r":0, "t":0, "l":0, "b":0},
-        
-
-    )
-
-    avg_salary_by_company = company_df.groupby('company')['totalyearlycompensation'].mean().reset_index()
-    top_10_companies = avg_salary_by_company.nlargest(10, 'totalyearlycompensation')
-    bar_chart = alt.Chart(top_10_companies).mark_bar().encode(
-        x=alt.X('company:N', sort='-y', axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y('totalyearlycompensation:Q', title='Average Yearly Compensation ($)'),
-        color=alt.Color('totalyearlycompensation:Q', 
-                    scale=alt.Scale(
-                        domain=[top_10_companies['totalyearlycompensation'].min(), 
-                                top_10_companies['totalyearlycompensation'].max()],
-                        range=['#ADD8E6', '#00008B']  # Light blue to deep blue
-                    ),legend=None
-                    )
-    ).properties(
-        width=200,
-        height=180
-    )
-    bar_chart_html = bar_chart.to_html()
-    
-    company_df['gender_category'] = company_df['gender'].dropna().map(
-        lambda x: 'male' if str(x).lower() in ['m', 'male'] 
-        else ('female' if str(x).lower() in ['f', 'female'] else 'other')
-    )
-    gender_counts = company_df['gender_category'].value_counts().reset_index()
-    gender_counts.columns = ['gender', 'count']
-    pie_chart = alt.Chart(gender_counts).mark_arc().encode(
-        theta='count:Q',
-        color=alt.Color('gender:N', scale=alt.Scale(domain=['male', 'female', 'other'])),
-        tooltip=['gender:N', 'count:Q']
-    ).properties(
-        width=180,
-        height=180
-    )
-    pie_chart_html = pie_chart.to_html()
-    
-    scatter_fig = px.scatter(
-        company_df,
-        x="yearsofexperience",
-        y="totalyearlycompensation",
-        color="level",
-        hover_data=["title", "basesalary", "stockgrantvalue", "bonus", "location"]
-    )
-    scatter_fig.update_layout(
-        xaxis_title="Years of Experience", 
-        yaxis_title="Total Compensation"
-    )
-    
-    education_df = company_df.melt(
-        id_vars=['totalyearlycompensation'],
-        value_vars=['Highschool', 'Bachelors_Degree', 'Masters_Degree', 'Doctorate_Degree'],
-        var_name='Education_Level',
-        value_name='Degree'
-    )
-    education_df = education_df[education_df['Degree'] == 1]
-    education_df['Education_Level'] = education_df['Education_Level'].replace({
-        'Highschool': 'Highschool',
-        'Bachelors_Degree': 'Bachelors',
-        'Masters_Degree': 'Masters',
-        'Doctorate_Degree': 'Doctorate'
-    })
-    violin_fig = px.violin(
-        education_df,
-        x="Education_Level",
-        y="totalyearlycompensation",
-        box=True,
-        points="all",
-        labels={"totalyearlycompensation": "Total Yearly Compensation ($)", "Education_Level": "Education Level"}
-    )
-    violin_fig.update_layout(
-        yaxis_title="Total Yearly Compensation ($)",
-        xaxis_title="Education Level"
-    )
-    
+    # Calculate summary statistics first (these are quick)
     total_responses = len(company_df)
     avg_comp = company_df['totalyearlycompensation'].mean() if len(company_df) > 0 else 0
     avg_experience = company_df['yearsofexperience'].mean() if len(company_df) > 0 else 0
     
+    # Create summary cards
     cards = html.Div([
         html.Div([
             html.H4("Total Responses", style={
@@ -364,14 +423,148 @@ def update_dashboard(selected_range, selected_company):
         'alignItems': 'center',
         'width': '100%'
     })
-    return (
-        map_fig,
-        bar_chart_html,
-        pie_chart_html,
-        scatter_fig,
-        violin_fig,
-        cards
+    
+    return cards
+
+# Add new callbacks for each chart
+@app.callback(
+    Output("map-graph", "figure"),
+    [Input("timestamp-slider", "value"), Input("company-dropdown", "value")]
+)
+def update_map(selected_range, selected_company):
+    if selected_range is None:
+        selected_range = [0, (max_date - min_date).days]
+    
+    start_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[0])
+    end_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[1])
+    filtered_df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
+    
+    if selected_company:
+        if isinstance(selected_company, list):
+            company_df = filtered_df[filtered_df["company"].isin(selected_company)].copy()
+        else:
+            company_df = filtered_df[filtered_df["company"] == selected_company].copy()
+    else:
+        company_df = filtered_df.copy()
+    
+    grouped = company_df.groupby(['latitude', 'longitude'], as_index=False).agg(
+        avg_salary=('totalyearlycompensation', 'mean'),
+        location=('location', 'first')
     )
+    
+    return create_map_chart(grouped)
+
+@app.callback(
+    Output("bar-chart", "srcDoc"),
+    [Input("timestamp-slider", "value"), Input("company-dropdown", "value")]
+)
+def update_bar(selected_range, selected_company):
+    if selected_range is None:
+        selected_range = [0, (max_date - min_date).days]
+        
+    start_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[0])
+    end_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[1])
+    filtered_df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
+    
+    if selected_company:
+        if isinstance(selected_company, list):
+            company_df = filtered_df[filtered_df["company"].isin(selected_company)].copy()
+        else:
+            company_df = filtered_df[filtered_df["company"] == selected_company].copy()
+    else:
+        company_df = filtered_df.copy()
+    
+    avg_salary_by_company = company_df.groupby('company')['totalyearlycompensation'].mean().reset_index()
+    top_10_companies = avg_salary_by_company.nlargest(10, 'totalyearlycompensation')
+    
+    return create_bar_chart(top_10_companies)
+
+@app.callback(
+    Output("pie-chart", "srcDoc"),
+    [Input("timestamp-slider", "value"), Input("company-dropdown", "value")]
+)
+def update_pie(selected_range, selected_company):
+    if selected_range is None:
+        selected_range = [0, (max_date - min_date).days]
+        
+    start_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[0])
+    end_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[1])
+    filtered_df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
+    
+    if selected_company:
+        if isinstance(selected_company, list):
+            company_df = filtered_df[filtered_df["company"].isin(selected_company)].copy()
+        else:
+            company_df = filtered_df[filtered_df["company"] == selected_company].copy()
+    else:
+        company_df = filtered_df.copy()
+    
+    company_df['gender_category'] = company_df['gender'].dropna().map(
+        lambda x: 'male' if str(x).lower() in ['m', 'male'] 
+        else ('female' if str(x).lower() in ['f', 'female'] else 'other')
+    )
+    gender_counts = company_df['gender_category'].value_counts().reset_index()
+    gender_counts.columns = ['gender', 'count']
+    
+    return create_pie_chart(gender_counts)
+
+@app.callback(
+    Output("scatter-graph", "figure"),
+    [Input("timestamp-slider", "value"), Input("company-dropdown", "value")]
+)
+def update_scatter(selected_range, selected_company):
+    if selected_range is None:
+        selected_range = [0, (max_date - min_date).days]
+        
+    start_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[0])
+    end_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[1])
+    filtered_df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
+    
+    if selected_company:
+        if isinstance(selected_company, list):
+            company_df = filtered_df[filtered_df["company"].isin(selected_company)].copy()
+        else:
+            company_df = filtered_df[filtered_df["company"] == selected_company].copy()
+    else:
+        company_df = filtered_df.copy()
+    
+    return create_scatter_chart(company_df)
+
+@app.callback(
+    Output("education-boxplot", "figure"),
+    [Input("timestamp-slider", "value"), Input("company-dropdown", "value")]
+)
+def update_education(selected_range, selected_company):
+    if selected_range is None:
+        selected_range = [0, (max_date - min_date).days]
+        
+    start_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[0])
+    end_date = df['timestamp'].min() + pd.Timedelta(days=selected_range[1])
+    filtered_df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
+    
+    if selected_company:
+        if isinstance(selected_company, list):
+            company_df = filtered_df[filtered_df["company"].isin(selected_company)].copy()
+        else:
+            company_df = filtered_df[filtered_df["company"] == selected_company].copy()
+    else:
+        company_df = filtered_df.copy()
+    
+    education_df = company_df.melt(
+        id_vars=['totalyearlycompensation'],
+        value_vars=['Highschool', 'Bachelors_Degree', 'Masters_Degree', 'Doctorate_Degree'],
+        var_name='Education_Level',
+        value_name='Degree'
+    )
+    education_df = education_df[education_df['Degree'] == 1]
+    education_df['Education_Level'] = education_df['Education_Level'].replace({
+        'Highschool': 'Highschool',
+        'Bachelors_Degree': 'Bachelors',
+        'Masters_Degree': 'Masters',
+        'Doctorate_Degree': 'Doctorate'
+    })
+    
+    return create_education_chart(education_df)
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=8052)
