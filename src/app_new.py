@@ -9,7 +9,7 @@ import dash_bootstrap_components as dbc
 alt.data_transformers.disable_max_rows()
 
 # Load data
-df = pd.read_csv(r'C:\Users\Wyuzh\Desktop\UBC\DATA_551\feedback\551-tech-salary\data\processed\your_output_file.csv')
+df = pd.read_csv('data/processed/your_output_file.csv')
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
 df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
